@@ -63,6 +63,7 @@ struct output_config *new_output_config(const char *name) {
 	oc->scale_filter = SCALE_FILTER_DEFAULT;
 	oc->transform = -1;
 	oc->subpixel = WL_OUTPUT_SUBPIXEL_UNKNOWN;
+	oc->format = WL_SHM_FORMAT_ARGB8888;
 	oc->max_render_time = -1;
 	oc->adaptive_sync = -1;
 	return oc;
