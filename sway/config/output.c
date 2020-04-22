@@ -94,6 +94,9 @@ void merge_output_config(struct output_config *dst, struct output_config *src) {
 	if (src->subpixel != WL_OUTPUT_SUBPIXEL_UNKNOWN) {
 		dst->subpixel = src->subpixel;
 	}
+	if(src->format != WL_SHM_FORMAT_ARGB8888) {
+		dst->format = src->format;
+	}
 	if (src->refresh_rate != -1) {
 		dst->refresh_rate = src->refresh_rate;
 	}
@@ -226,11 +229,11 @@ struct output_config *store_output_config(struct output_config *oc) {
 	}
 
 	sway_log(SWAY_DEBUG, "Config stored for output %s (enabled: %d) (%dx%d@%fHz "
-		"position %d,%d scale %f subpixel %s transform %d) (bg %s %s) (dpms %d) "
+		"position %d,%d scale %f subpixel %s format %s transform %d) (bg %s %s) (dpms %d) "
 		"(max render time: %d)",
 		oc->name, oc->enabled, oc->width, oc->height, oc->refresh_rate,
 		oc->x, oc->y, oc->scale, sway_wl_output_subpixel_to_string(oc->subpixel),
-		oc->transform, oc->background, oc->background_option, oc->dpms_state,
+		oc->format, oc->transform, oc->background, oc->background_option, oc->dpms_state,
 		oc->max_render_time);
 
 	return oc;
@@ -363,6 +366,12 @@ static void queue_output_config(struct output_config *oc,
 		sway_log(SWAY_DEBUG, "Set %s subpixel to %s", oc->name,
 			sway_wl_output_subpixel_to_string(oc->subpixel));
 		wlr_output_set_subpixel(wlr_output, oc->subpixel);
+	}
+
+	if (oc && (oc->format != WL_SHM_FORMAT_ARGB8888 || config->reloading)) {
+		sway_log(SWAY_DEBUG, "Set %s format to %s", oc->name,
+			sway_wl_output_format_to_string(oc->format));
+		wlr_output_set_format(wlr_output, oc->format);
 	}
 
 	if (oc && oc->transform >= 0) {
@@ -511,6 +520,7 @@ static void default_output_config(struct output_config *oc,
 	oc->scale_filter = SCALE_FILTER_DEFAULT;
 	struct sway_output *output = wlr_output->data;
 	oc->subpixel = output->detected_subpixel;
+	oc->format = WL_SHM_FORMAT_ARGB8888;
 	oc->transform = WL_OUTPUT_TRANSFORM_NORMAL;
 	oc->dpms_state = DPMS_ON;
 	oc->max_render_time = 0;
