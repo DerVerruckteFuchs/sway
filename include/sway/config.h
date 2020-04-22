@@ -246,6 +246,7 @@ struct output_config {
 	enum scale_filter_mode scale_filter;
 	int32_t transform;
 	enum wl_output_subpixel subpixel;
+	enum wl_shm_format format;
 	int max_render_time; // In milliseconds
 	int adaptive_sync;
 
