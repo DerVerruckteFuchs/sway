@@ -13,6 +13,7 @@ static struct cmd_handler output_handlers[] = {
 	{ "disable", output_cmd_disable },
 	{ "dpms", output_cmd_dpms },
 	{ "enable", output_cmd_enable },
+	{ "format", output_cmd_format },
 	{ "max_render_time", output_cmd_max_render_time },
 	{ "mode", output_cmd_mode },
 	{ "pos", output_cmd_position },
