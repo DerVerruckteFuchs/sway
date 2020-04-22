@@ -190,13 +190,14 @@ static void pretty_print_output(json_object *o) {
 	json_object_object_get_ex(o, "active", &active);
 	json_object_object_get_ex(o, "current_workspace", &ws);
 	json_object *make, *model, *serial, *scale, *scale_filter, *subpixel,
-		*transform, *max_render_time, *adaptive_sync_status;
+		*format, *transform, *max_render_time, *adaptive_sync_status;
 	json_object_object_get_ex(o, "make", &make);
 	json_object_object_get_ex(o, "model", &model);
 	json_object_object_get_ex(o, "serial", &serial);
 	json_object_object_get_ex(o, "scale", &scale);
 	json_object_object_get_ex(o, "scale_filter", &scale_filter);
 	json_object_object_get_ex(o, "subpixel_hinting", &subpixel);
+	json_object_object_get_ex(o, "format", &format);
 	json_object_object_get_ex(o, "transform", &transform);
 	json_object_object_get_ex(o, "max_render_time", &max_render_time);
 	json_object_object_get_ex(o, "adaptive_sync_status", &adaptive_sync_status);
