@@ -41,6 +41,8 @@ float parse_float(const char *value);
 
 const char *sway_wl_output_subpixel_to_string(enum wl_output_subpixel subpixel);
 
+const char *sway_wl_output_format_to_string(enum wl_shm_format format);
+
 bool sway_set_cloexec(int fd, bool cloexec);
 
 #endif
