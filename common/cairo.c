@@ -26,6 +26,18 @@ cairo_subpixel_order_t to_cairo_subpixel_order(enum wl_output_subpixel subpixel)
 	return CAIRO_SUBPIXEL_ORDER_DEFAULT;
 }
 
+cairo_format_t to_cairo_format(enum wl_shm_format format) {
+	switch (format) {
+	case WL_SHM_FORMAT_XRGB2101010:
+		return CAIRO_FORMAT_RGB30;
+	case WL_SHM_FORMAT_ARGB8888:
+		return CAIRO_FORMAT_ARGB32;
+	default:
+		return CAIRO_FORMAT_ARGB32;
+	}
+	return CAIRO_FORMAT_ARGB32;
+}
+
 cairo_surface_t *cairo_image_surface_scale(cairo_surface_t *image,
 		int width, int height) {
 	int image_width = cairo_image_surface_get_width(image);
