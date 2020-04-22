@@ -85,6 +85,17 @@ const char *sway_wl_output_subpixel_to_string(enum wl_output_subpixel subpixel) 
 	return NULL;
 }
 
+const char *sway_wl_output_format_to_string(enum wl_shm_format format) {
+	switch (format) {
+	case WL_SHM_FORMAT_ARGB8888:
+		return "8bit";
+	case WL_SHM_FORMAT_XRGB2101010:
+		return "10bit";
+	}
+	sway_assert(false, "Unknown value for wl_shm_format.");
+	return NULL;
+}
+
 bool sway_set_cloexec(int fd, bool cloexec) {
 	int flags = fcntl(fd, F_GETFD);
 	if (flags == -1) {
