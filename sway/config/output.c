@@ -229,7 +229,7 @@ struct output_config *store_output_config(struct output_config *oc) {
 	}
 
 	sway_log(SWAY_DEBUG, "Config stored for output %s (enabled: %d) (%dx%d@%fHz "
-		"position %d,%d scale %f subpixel %s format %s transform %d) (bg %s %s) (dpms %d) "
+		"position %d,%d scale %f subpixel %s format %d transform %d) (bg %s %s) (dpms %d) "
 		"(max render time: %d)",
 		oc->name, oc->enabled, oc->width, oc->height, oc->refresh_rate,
 		oc->x, oc->y, oc->scale, sway_wl_output_subpixel_to_string(oc->subpixel),
