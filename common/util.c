@@ -94,9 +94,34 @@ const char *sway_wl_output_subpixel_to_string(enum wl_output_subpixel subpixel) 
 const char *sway_wl_output_format_to_string(enum wl_shm_format format) {
 	switch (format) {
 	case WL_SHM_FORMAT_ARGB8888:
-		return "8bit";
+		return "32-bit ARGB format, [31:0] A:R:G:B 8:8:8:8 little endian";
+	case WL_SHM_FORMAT_XRGB8888:
+		return "32-bit RGB format, [31:0] x:R:G:B 8:8:8:8 little endian";
+	case WL_SHM_FORMAT_C8:
+		return "8-bit color index format, [7:0] C";
+	case WL_SHM_FORMAT_RGB332:
+		return "8-bit RGB format, [7:0] R:G:B 3:3:2";
+	case WL_SHM_FORMAT_BGR233:
+		return "8-bit BGR format, [7:0] B:G:R 2:3:3";
+	case WL_SHM_FORMAT_XRGB4444:
+		return "16-bit xRGB format, [15:0] x:R:G:B 4:4:4:4 little endian";
+	case WL_SHM_FORMAT_XBGR4444:
+		return "16-bit xBGR format, [15:0] x:B:G:R 4:4:4:4 little endian";
+	case WL_SHM_FORMAT_RGBX4444:
+		return "16-bit RGBx format, [15:0] R:G:B:x 4:4:4:4 little endian";
+	case WL_SHM_FORMAT_BGRX4444:
+		return "16-bit BGRx format, [15:0] B:G:R:x 4:4:4:4 little endian";
+	case WL_SHM_FORMAT_ARGB4444:
+		return "16-bit ARGB format, [15:0] A:R:G:B 4:4:4:4 little endian";
+	case WL_SHM_FORMAT_ABGR4444:
+		return "16-bit ABGR format, [15:0] A:B:G:R 4:4:4:4 little endian";
+	case WL_SHM_FORMAT_RGBA4444:
+		return "16-bit RBGA format, [15:0] R:G:B:A 4:4:4:4 little endian";
+
 	case WL_SHM_FORMAT_XRGB2101010:
 		return "10bit";
+	default:
+		return "other";
 	}
 	sway_assert(false, "Unknown value for wl_shm_format.");
 	return NULL;
