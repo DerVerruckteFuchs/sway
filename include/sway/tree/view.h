@@ -43,6 +43,7 @@ struct sway_view_impl {
 	void (*set_activated)(struct sway_view *view, bool activated);
 	void (*set_tiled)(struct sway_view *view, bool tiled);
 	void (*set_fullscreen)(struct sway_view *view, bool fullscreen);
+	void (*set_resizing)(struct sway_view *view, bool resizing);
 	bool (*wants_floating)(struct sway_view *view);
 	void (*for_each_surface)(struct sway_view *view,
 		wlr_surface_iterator_func_t iterator, void *user_data);
@@ -98,7 +99,9 @@ struct sway_view {
 
 	struct wlr_foreign_toplevel_handle_v1 *foreign_toplevel;
 	struct wl_listener foreign_activate_request;
+	struct wl_listener foreign_fullscreen_request;
 	struct wl_listener foreign_close_request;
+	struct wl_listener foreign_destroy;
 
 	bool destroying;
 
@@ -146,6 +149,7 @@ struct sway_xwayland_view {
 	struct wl_listener request_move;
 	struct wl_listener request_resize;
 	struct wl_listener request_maximize;
+	struct wl_listener request_minimize;
 	struct wl_listener request_configure;
 	struct wl_listener request_fullscreen;
 	struct wl_listener request_activate;
@@ -158,6 +162,7 @@ struct sway_xwayland_view {
 	struct wl_listener map;
 	struct wl_listener unmap;
 	struct wl_listener destroy;
+	struct wl_listener override_redirect;
 };
 
 struct sway_xwayland_unmanaged {
@@ -169,9 +174,11 @@ struct sway_xwayland_unmanaged {
 	struct wl_listener request_configure;
 	struct wl_listener request_fullscreen;
 	struct wl_listener commit;
+	struct wl_listener set_geometry;
 	struct wl_listener map;
 	struct wl_listener unmap;
 	struct wl_listener destroy;
+	struct wl_listener override_redirect;
 };
 #endif
 struct sway_view_child;

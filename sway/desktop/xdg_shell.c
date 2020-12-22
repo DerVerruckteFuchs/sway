@@ -185,6 +185,14 @@ static void set_fullscreen(struct sway_view *view, bool fullscreen) {
 	wlr_xdg_toplevel_set_fullscreen(surface, fullscreen);
 }
 
+static void set_resizing(struct sway_view *view, bool resizing) {
+	if (xdg_shell_view_from_view(view) == NULL) {
+		return;
+	}
+	struct wlr_xdg_surface *surface = view->wlr_xdg_surface;
+	wlr_xdg_toplevel_set_resizing(surface, resizing);
+}
+
 static bool wants_floating(struct sway_view *view) {
 	struct wlr_xdg_toplevel *toplevel = view->wlr_xdg_surface->toplevel;
 	struct wlr_xdg_toplevel_state *state = &toplevel->current;
@@ -260,6 +268,7 @@ static const struct sway_view_impl view_impl = {
 	.set_activated = set_activated,
 	.set_tiled = set_tiled,
 	.set_fullscreen = set_fullscreen,
+	.set_resizing = set_resizing,
 	.wants_floating = wants_floating,
 	.for_each_surface = for_each_surface,
 	.for_each_popup = for_each_popup,
@@ -275,29 +284,27 @@ static void handle_commit(struct wl_listener *listener, void *data) {
 	struct sway_view *view = &xdg_shell_view->view;
 	struct wlr_xdg_surface *xdg_surface = view->wlr_xdg_surface;
 
+	struct wlr_box new_geo;
+	wlr_xdg_surface_get_geometry(xdg_surface, &new_geo);
+	bool new_size = new_geo.width != view->geometry.width ||
+			new_geo.height != view->geometry.height ||
+			new_geo.x != view->geometry.x ||
+			new_geo.y != view->geometry.y;
+
+	if (new_size) {
+		// The view has unexpectedly sent a new size
+		desktop_damage_view(view);
+		view_update_size(view, new_geo.width, new_geo.height);
+		memcpy(&view->geometry, &new_geo, sizeof(struct wlr_box));
+		desktop_damage_view(view);
+		transaction_commit_dirty();
+	}
+
 	if (view->container->node.instruction) {
-		wlr_xdg_surface_get_geometry(xdg_surface, &view->geometry);
 		transaction_notify_view_ready_by_serial(view,
 				xdg_surface->configure_serial);
-	} else {
-		struct wlr_box new_geo;
-		wlr_xdg_surface_get_geometry(xdg_surface, &new_geo);
-
-		if ((new_geo.width != view->geometry.width ||
-					new_geo.height != view->geometry.height ||
-					new_geo.x != view->geometry.x ||
-					new_geo.y != view->geometry.y)) {
-			// The view has unexpectedly sent a new size
-			desktop_damage_view(view);
-			view_update_size(view, new_geo.width, new_geo.height);
-			memcpy(&view->geometry, &new_geo, sizeof(struct wlr_box));
-			desktop_damage_view(view);
-			transaction_commit_dirty();
-			transaction_notify_view_ready_by_size(view,
-					new_geo.width, new_geo.height);
-		} else {
-			memcpy(&view->geometry, &new_geo, sizeof(struct wlr_box));
-		}
+	} else if (new_size) {
+		transaction_notify_view_ready_immediately(view);
 	}
 
 	view_damage_from(view);
@@ -342,22 +349,28 @@ static void handle_request_fullscreen(struct wl_listener *listener, void *data) 
 		return;
 	}
 
+	struct sway_container *container = view->container;
 	if (e->fullscreen && e->output && e->output->data) {
 		struct sway_output *output = e->output->data;
 		struct sway_workspace *ws = output_get_active_workspace(output);
-		if (ws && !container_is_scratchpad_hidden(view->container)) {
-			if (container_is_floating(view->container)) {
-				workspace_add_floating(ws, view->container);
+		if (ws && !container_is_scratchpad_hidden(container)) {
+			if (container_is_floating(container)) {
+				workspace_add_floating(ws, container);
 			} else {
-				workspace_add_tiling(ws, view->container);
+				container = workspace_add_tiling(ws, container);
 			}
 		}
 	}
 
-	container_set_fullscreen(view->container, e->fullscreen);
+	container_set_fullscreen(container, e->fullscreen);
 
 	arrange_root();
 	transaction_commit_dirty();
+}
+
+static void handle_request_maximize(struct wl_listener *listener, void *data) {
+	struct wlr_xdg_surface *surface = data;
+	wlr_xdg_surface_schedule_configure(surface);
 }
 
 static void handle_request_move(struct wl_listener *listener, void *data) {
@@ -402,6 +415,7 @@ static void handle_unmap(struct wl_listener *listener, void *data) {
 	wl_list_remove(&xdg_shell_view->commit.link);
 	wl_list_remove(&xdg_shell_view->new_popup.link);
 	wl_list_remove(&xdg_shell_view->request_fullscreen.link);
+	wl_list_remove(&xdg_shell_view->request_maximize.link);
 	wl_list_remove(&xdg_shell_view->request_move.link);
 	wl_list_remove(&xdg_shell_view->request_resize.link);
 	wl_list_remove(&xdg_shell_view->set_title.link);
@@ -449,6 +463,10 @@ static void handle_map(struct wl_listener *listener, void *data) {
 	xdg_shell_view->request_fullscreen.notify = handle_request_fullscreen;
 	wl_signal_add(&xdg_surface->toplevel->events.request_fullscreen,
 			&xdg_shell_view->request_fullscreen);
+
+	xdg_shell_view->request_maximize.notify = handle_request_maximize;
+	wl_signal_add(&xdg_surface->toplevel->events.request_maximize,
+			&xdg_shell_view->request_maximize);
 
 	xdg_shell_view->request_move.notify = handle_request_move;
 	wl_signal_add(&xdg_surface->toplevel->events.request_move,

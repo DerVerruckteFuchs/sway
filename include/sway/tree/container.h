@@ -78,6 +78,9 @@ struct sway_container {
 	enum sway_container_layout layout;
 	enum sway_container_layout prev_split_layout;
 
+	// Whether stickiness has been enabled on this container. Use
+	// `container_is_sticky_[or_child]` rather than accessing this field
+	// directly; it'll also check that the container is floating.
 	bool is_sticky;
 
 	// For C_ROOT, this has no meaning
@@ -218,6 +221,8 @@ void floating_calculate_constraints(int *min_width, int *max_width,
 void container_floating_resize_and_center(struct sway_container *con);
 
 void container_floating_set_default_size(struct sway_container *con);
+
+void container_set_resizing(struct sway_container *con, bool resizing);
 
 void container_set_floating(struct sway_container *container, bool enable);
 
@@ -364,5 +369,22 @@ void container_raise_floating(struct sway_container *con);
 bool container_is_scratchpad_hidden(struct sway_container *con);
 
 bool container_is_scratchpad_hidden_or_child(struct sway_container *con);
+
+bool container_is_sticky(struct sway_container *con);
+
+bool container_is_sticky_or_child(struct sway_container *con);
+
+/**
+ * This will destroy pairs of redundant H/V splits
+ * e.g. H[V[H[app app]] app] -> H[app app app]
+ * The middle "V[H[" are eliminated by a call to container_squash
+ * on the V[ con. It's grandchildren are added to it's parent.
+ *
+ * This function is roughly equivalent to i3's tree_flatten here:
+ * https://github.com/i3/i3/blob/1f0c628cde40cf87371481041b7197344e0417c6/src/tree.c#L651
+ *
+ * Returns the number of new containers added to the parent
+ */
+int container_squash(struct sway_container *con);
 
 #endif

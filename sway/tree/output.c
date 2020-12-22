@@ -110,12 +110,12 @@ struct sway_output *output_create(struct wlr_output *wlr_output) {
 	return output;
 }
 
-void output_configure(struct sway_output *output) {
-	if (!sway_assert(!output->configured, "output is already configured")) {
+void output_enable(struct sway_output *output) {
+	if (!sway_assert(!output->enabled, "output is already enabled")) {
 		return;
 	}
 	struct wlr_output *wlr_output = output->wlr_output;
-	output->configured = true;
+	output->enabled = true;
 	list_add(root->outputs, output);
 
 	restore_workspaces(output);
@@ -158,7 +158,7 @@ static void evacuate_sticky(struct sway_workspace *old_ws,
 	if (!sway_assert(new_ws, "New output does not have a workspace")) {
 		return;
 	}
-	while (old_ws->floating->length) {
+	while(old_ws->floating->length) {
 		struct sway_container *sticky = old_ws->floating->items[0];
 		container_detach(sticky);
 		workspace_add_floating(new_ws, sticky);
@@ -195,17 +195,22 @@ static void output_evacuate(struct sway_output *output) {
 			new_output = root->noop_output;
 		}
 
-		if (workspace_is_empty(workspace)) {
-			// If floating is not empty, there are sticky containers to move
-			if (workspace->floating->length) {
-				evacuate_sticky(workspace, new_output);
-			}
-			workspace_begin_destroy(workspace);
-			continue;
-		}
-
 		struct sway_workspace *new_output_ws =
 			output_get_active_workspace(new_output);
+
+		if (workspace_is_empty(workspace)) {
+			// If the new output has an active workspace (the noop output may
+			// not have one), move all sticky containers to it
+			if (new_output_ws &&
+					workspace_num_sticky_containers(workspace) > 0) {
+				evacuate_sticky(workspace, new_output);
+			}
+
+			if (workspace_num_sticky_containers(workspace) == 0) {
+				workspace_begin_destroy(workspace);
+				continue;
+			}
+		}
 
 		workspace_output_add_priority(workspace, new_output);
 		output_add_workspace(new_output, workspace);
@@ -251,6 +256,11 @@ void output_disable(struct sway_output *output) {
 	if (!sway_assert(output->enabled, "Expected an enabled output")) {
 		return;
 	}
+	int index = list_find(root->outputs, output);
+	if (!sway_assert(index >= 0, "Output not found in root node")) {
+		return;
+	}
+
 	sway_log(SWAY_DEBUG, "Disabling output '%s'", output->wlr_output->name);
 	wl_signal_emit(&output->events.destroy, output);
 
@@ -258,11 +268,9 @@ void output_disable(struct sway_output *output) {
 
 	root_for_each_container(untrack_output, output);
 
-	int index = list_find(root->outputs, output);
 	list_del(root->outputs, index);
 
 	output->enabled = false;
-	output->configured = false;
 	output->current_mode = NULL;
 
 	arrange_root();
@@ -387,9 +395,6 @@ void output_get_box(struct sway_output *output, struct wlr_box *box) {
 
 enum sway_container_layout output_get_default_layout(
 		struct sway_output *output) {
-	if (config->default_layout != L_NONE) {
-		return config->default_layout;
-	}
 	if (config->default_orientation != L_NONE) {
 		return config->default_orientation;
 	}

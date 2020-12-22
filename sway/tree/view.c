@@ -280,7 +280,8 @@ void view_autoconfigure(struct sway_view *view) {
 			(config->hide_edge_borders_smart == ESMART_NO_GAPS &&
 			!gaps_to_edge(view));
 		if (smart) {
-			bool show_border = !view_is_only_visible(view);
+			bool show_border = container_is_floating_or_child(con) ||
+				!view_is_only_visible(view);
 			con->border_left &= show_border;
 			con->border_right &= show_border;
 			con->border_top &= show_border;
@@ -625,8 +626,40 @@ static void handle_foreign_activate_request(
 	struct sway_seat *seat;
 	wl_list_for_each(seat, &server.input->seats, link) {
 		if (seat->wlr_seat == event->seat) {
+			if (container_is_scratchpad_hidden_or_child(view->container)) {
+				root_scratchpad_show(view->container);
+			}
 			seat_set_focus_container(seat, view->container);
+			seat_consider_warp_to_focus(seat);
+			container_raise_floating(view->container);
 			break;
+		}
+	}
+}
+
+static void handle_foreign_fullscreen_request(
+		struct wl_listener *listener, void *data) {
+	struct sway_view *view = wl_container_of(
+			listener, view, foreign_fullscreen_request);
+	struct wlr_foreign_toplevel_handle_v1_fullscreen_event *event = data;
+
+	// Match fullscreen command behavior for scratchpad hidden views
+	struct sway_container *container = view->container;
+	if (!container->workspace) {
+		while (container->parent) {
+			container = container->parent;
+		}
+	}
+
+	container_set_fullscreen(container,
+		event->fullscreen ? FULLSCREEN_WORKSPACE : FULLSCREEN_NONE);
+	if (event->fullscreen) {
+		arrange_root();
+	} else {
+		if (container->parent) {
+			arrange_container(container->parent);
+		} else if (container->workspace) {
+			arrange_workspace(container->workspace);
 		}
 	}
 }
@@ -636,6 +669,17 @@ static void handle_foreign_close_request(
 	struct sway_view *view = wl_container_of(
 			listener, view, foreign_close_request);
 	view_close(view);
+}
+
+static void handle_foreign_destroy(
+		struct wl_listener *listener, void *data) {
+	struct sway_view *view = wl_container_of(
+			listener, view, foreign_destroy);
+
+	wl_list_remove(&view->foreign_activate_request.link);
+	wl_list_remove(&view->foreign_fullscreen_request.link);
+	wl_list_remove(&view->foreign_close_request.link);
+	wl_list_remove(&view->foreign_destroy.link);
 }
 
 void view_map(struct sway_view *view, struct wlr_surface *wlr_surface,
@@ -671,9 +715,15 @@ void view_map(struct sway_view *view, struct wlr_surface *wlr_surface,
 	view->foreign_activate_request.notify = handle_foreign_activate_request;
 	wl_signal_add(&view->foreign_toplevel->events.request_activate,
 			&view->foreign_activate_request);
+	view->foreign_fullscreen_request.notify = handle_foreign_fullscreen_request;
+	wl_signal_add(&view->foreign_toplevel->events.request_fullscreen,
+			&view->foreign_fullscreen_request);
 	view->foreign_close_request.notify = handle_foreign_close_request;
 	wl_signal_add(&view->foreign_toplevel->events.request_close,
 			&view->foreign_close_request);
+	view->foreign_destroy.notify = handle_foreign_destroy;
+	wl_signal_add(&view->foreign_toplevel->events.destroy,
+			&view->foreign_destroy);
 
 	// If we're about to launch the view into the floating container, then
 	// launch it as a tiled view in the root of the workspace instead.
@@ -682,10 +732,11 @@ void view_map(struct sway_view *view, struct wlr_surface *wlr_surface,
 		ws = seat_get_last_known_workspace(seat);
 	}
 
+	struct sway_container *container = view->container;
 	if (target_sibling) {
-		container_add_sibling(target_sibling, view->container, 1);
+		container_add_sibling(target_sibling, container, 1);
 	} else if (ws) {
-		workspace_add_tiling(ws, view->container);
+		container = workspace_add_tiling(ws, container);
 	}
 	ipc_event_window(view->container, "new");
 
@@ -709,26 +760,26 @@ void view_map(struct sway_view *view, struct wlr_surface *wlr_surface,
 	}
 
 	if (config->popup_during_fullscreen == POPUP_LEAVE &&
-			view->container->workspace &&
-			view->container->workspace->fullscreen &&
-			view->container->workspace->fullscreen->view) {
-		struct sway_container *fs = view->container->workspace->fullscreen;
+			container->workspace &&
+			container->workspace->fullscreen &&
+			container->workspace->fullscreen->view) {
+		struct sway_container *fs = container->workspace->fullscreen;
 		if (view_is_transient_for(view, fs->view)) {
 			container_set_fullscreen(fs, false);
 		}
 	}
 
 	view_update_title(view, false);
-	container_update_representation(view->container);
+	container_update_representation(container);
 
 	if (fullscreen) {
 		container_set_fullscreen(view->container, true);
 		arrange_workspace(view->container->workspace);
 	} else {
-		if (view->container->parent) {
-			arrange_container(view->container->parent);
-		} else if (view->container->workspace) {
-			arrange_workspace(view->container->workspace);
+		if (container->parent) {
+			arrange_container(container->parent);
+		} else if (container->workspace) {
+			arrange_workspace(container->workspace);
 		}
 	}
 
@@ -1194,13 +1245,9 @@ bool view_is_visible(struct sway_view *view) {
 			return false;
 		}
 	}
-	// Determine if view is nested inside a floating container which is sticky
-	struct sway_container *floater = view->container;
-	while (floater->parent) {
-		floater = floater->parent;
-	}
-	bool is_sticky = container_is_floating(floater) && floater->is_sticky;
-	if (!is_sticky && workspace && !workspace_is_visible(workspace)) {
+
+	if (!container_is_sticky_or_child(view->container) && workspace &&
+			!workspace_is_visible(workspace)) {
 		return false;
 	}
 	// Check view isn't in a tabbed or stacked container on an inactive tab

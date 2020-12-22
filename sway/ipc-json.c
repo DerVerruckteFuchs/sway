@@ -160,7 +160,7 @@ json_object *ipc_json_get_version(void) {
 	int major = 0, minor = 0, patch = 0;
 	json_object *version = json_object_new_object();
 
-	sscanf(SWAY_VERSION, "%u.%u.%u", &major, &minor, &patch);
+	sscanf(SWAY_VERSION, "%d.%d.%d", &major, &minor, &patch);
 
 	json_object_object_add(version, "human_readable", json_object_new_string(SWAY_VERSION));
 	json_object_object_add(version, "variant", json_object_new_string("sway"));
@@ -1102,6 +1102,8 @@ json_object *ipc_json_describe_bar_config(struct bar_config *bar) {
 			json_object_new_boolean(bar->strip_workspace_numbers));
 	json_object_object_add(json, "strip_workspace_name",
 			json_object_new_boolean(bar->strip_workspace_name));
+	json_object_object_add(json, "workspace_min_width",
+			json_object_new_int(bar->workspace_min_width));
 	json_object_object_add(json, "binding_mode_indicator",
 			json_object_new_boolean(bar->binding_mode_indicator));
 	json_object_object_add(json, "verbose",

@@ -37,15 +37,14 @@ struct sway_output {
 	// last applied mode when the output is DPMS'ed
 	struct wlr_output_mode *current_mode;
 
-	bool enabled, configured;
+	bool enabling, enabled;
 	list_t *workspaces;
 
 	struct sway_output_state current;
 
 	struct wl_listener destroy;
+	struct wl_listener commit;
 	struct wl_listener mode;
-	struct wl_listener transform;
-	struct wl_listener scale;
 	struct wl_listener present;
 	struct wl_listener damage_destroy;
 	struct wl_listener damage_frame;
@@ -99,7 +98,7 @@ struct sway_output *all_output_by_name_or_id(const char *name_or_id);
 
 void output_sort_workspaces(struct sway_output *output);
 
-void output_configure(struct sway_output *output);
+void output_enable(struct sway_output *output);
 
 void output_disable(struct sway_output *output);
 
